@@ -4,148 +4,235 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#f3e9d7">
-  <meta name="description" content="A little scrapbook for your favourite people.">
-  <title>Picture Time — Save the little bits</title>
+  <meta name="theme-color" content="#f7f5ef">
+  <meta name="description" content="A little time to capture life's moments together.">
+  <title>Picture Time</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css">
-  <script type="module" src="app.js"></script>
 </head>
 <body>
-  <header class="topbar">
-    <a class="brand" href="#" aria-label="Picture Time home">
-      <span class="brand-icon">✳</span>
-      picture time<span class="dot">.</span>
-    </a>
-    <button id="profileButton" class="avatar" aria-label="Edit your profile">B</button>
-  </header>
+  <div class="app">
+    <header class="topbar">
+      <a class="brand" href="#" id="brandHome" aria-label="Picture Time home">
+        <span class="brand-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
+               aria-hidden="true">
+            <path d="M4 8h3l2-3h6l2 3h3a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2Z"/>
+            <circle cx="12" cy="13" r="4"/>
+          </svg>
+        </span>
+        <span class="brand-name">picture time<span class="brand-dot">.</span></span>
+      </a>
+      <button class="avatar-button" id="profileButton" aria-label="Open profile">?</button>
+    </header>
 
-  <main class="container">
-    <section class="hero">
-      <div class="hero-copy">
-        <p class="eyebrow">✦ YOUR PEOPLE, YOUR MOMENTS</p>
-        <h1>Life happens.<br><em>Save the little bits.</em></h1>
-        <p class="intro">A tiny photo ritual for the people you want to remember everything with.</p>
-        <button id="startRound" class="primary large">
-          <span>▣</span> Picture time! <span class="arrow">↗</span>
-        </button>
-        <p id="heroHint" class="hint">Start a round and give everyone 15 minutes to share a moment.</p>
-      </div>
-      <div class="hero-art" aria-hidden="true">
-        <span class="sun">✳</span>
-        <span class="heart">♡</span>
-        <span class="star">✦</span>
-        <div class="tape"></div>
-        <div class="polaroid">
-          <div class="landscape"><span>☼</span></div>
-          <p>the good stuff</p>
+    <main class="main-content">
+      <!-- HOME -->
+      <section class="view active" id="homeView" aria-labelledby="homeTitle">
+        <div class="greeting-row">
+          <div>
+            <p class="eyebrow" id="homeEyebrow">A LITTLE MOMENT, TOGETHER</p>
+            <h1 id="homeTitle">Make time for<br>the <span class="accent-text">little things.</span></h1>
+          </div>
+          <div class="sun-doodle" aria-hidden="true">✳</div>
         </div>
-      </div>
-    </section>
 
-    <section class="group-bar">
+        <p class="intro-text" id="heroHint">
+          Gather your people. Start a round. Capture what happens.
+        </p>
+
+        <div class="group-picker-row">
+          <label for="groupSelect">YOUR GROUP</label>
+          <select id="groupSelect" aria-label="Choose a group">
+            <option value="">Sign in to load groups</option>
+          </select>
+          <button class="text-button" id="manageGroups" type="button">Manage</button>
+        </div>
+
+        <section class="start-card" aria-label="Picture time round">
+          <div class="start-card-top">
+            <span class="live-indicator"></span>
+            <span id="roundStatus">YOUR NEXT LITTLE ADVENTURE</span>
+          </div>
+          <div class="start-illustration" aria-hidden="true">
+            <span class="sparkle sparkle-one">✦</span>
+            <span class="sparkle sparkle-two">✳</span>
+            <div class="camera-illustration">
+              <div class="camera-flash"></div>
+              <div class="camera-lens"><div></div></div>
+            </div>
+            <span class="sparkle sparkle-three">✧</span>
+          </div>
+          <h2 id="startCardTitle">Ready, set, picture time!</h2>
+          <p id="startCardText">Everyone gets 15 minutes to capture their world.</p>
+          <button class="primary-button" id="startRound" type="button">
+            <span>Start picture time</span>
+            <span aria-hidden="true">↗</span>
+          </button>
+          <p class="button-footnote">A shared 15-minute photo round</p>
+        </section>
+
+        <section class="active-round hidden" id="activeRound" aria-live="polite">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">ROUND IN PROGRESS</p>
+              <h2>Picture time!</h2>
+            </div>
+            <div class="timer-pill"><span class="timer-dot"></span><span id="timer">15:00</span></div>
+          </div>
+          <p class="muted">Capture a moment before the timer runs out.</p>
+          <label class="upload-button" for="photoInput">
+            <span aria-hidden="true">＋</span> Add a photo
+          </label>
+          <input id="photoInput" type="file" accept="image/*" capture="environment" hidden>
+          <div class="photo-grid active-photo-grid" id="activePhotos"></div>
+        </section>
+
+        <section class="recent-section">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">THE GOOD STUFF</p>
+              <h2>Recent moments</h2>
+            </div>
+            <button class="text-button" id="calendarButton" type="button">See all ↗</button>
+          </div>
+          <div class="rounds-list" id="roundsList"></div>
+          <div class="empty-state" id="emptyState">
+            <div class="empty-icon" aria-hidden="true">☼</div>
+            <h3>Your story starts here</h3>
+            <p>Your group's photo rounds will show up here.</p>
+            <button class="secondary-button" id="emptyCreate" type="button">Explore groups</button>
+          </div>
+        </section>
+      </section>
+
+      <!-- CALENDAR -->
+      <section class="view" id="calendarView" aria-labelledby="calendarTitle">
+        <div class="page-heading">
+          <p class="eyebrow">A LOOK BACK</p>
+          <h1 id="calendarTitle">Your calendar<span class="accent-text">.</span></h1>
+          <p>All those little moments, all in one place.</p>
+        </div>
+        <div class="content-card">
+          <div class="section-heading">
+            <h2>Memories</h2>
+            <span class="soft-label">BY DATE</span>
+          </div>
+          <div class="calendar-content" id="calendarContent"></div>
+        </div>
+      </section>
+
+      <!-- GROUPS -->
+      <section class="view" id="groupsView" aria-labelledby="groupsTitle">
+        <div class="page-heading">
+          <p class="eyebrow">YOUR PEOPLE</p>
+          <h1 id="groupsTitle">Better together<span class="accent-text">.</span></h1>
+          <p>Create a group or join one with an invite code.</p>
+        </div>
+
+        <section class="content-card form-card">
+          <div class="card-icon green-icon" aria-hidden="true">✳</div>
+          <h2>Create a group</h2>
+          <p>Start a shared space for your favourite people.</p>
+          <form id="createGroupForm" class="app-form">
+            <label for="groupName">Group name</label>
+            <input id="groupName" name="groupName" maxlength="60"
+                   placeholder="e.g. The Weekend Crew" required>
+            <button class="primary-button" type="submit">Create group <span>↗</span></button>
+          </form>
+        </section>
+
+        <section class="content-card form-card">
+          <div class="card-icon peach-icon" aria-hidden="true">↗</div>
+          <h2>Join a group</h2>
+          <p>Have an invite code? You're one step away.</p>
+          <form id="joinGroupForm" class="app-form">
+            <label for="inviteCode">Invite code</label>
+            <input id="inviteCode" name="inviteCode" maxlength="8"
+                   placeholder="ENTER CODE" autocomplete="off" required>
+            <button class="secondary-button full-button" type="submit">Join group</button>
+          </form>
+        </section>
+
+        <section class="groups-section">
+          <div class="section-heading">
+            <h2>Your groups</h2>
+            <span class="soft-label">YOUR SPACES</span>
+          </div>
+          <div class="groups-list" id="groupsList"></div>
+        </section>
+      </section>
+
+      <!-- PROFILE -->
+      <section class="view" id="profileView" aria-labelledby="profileTitle">
+        <div class="page-heading">
+          <p class="eyebrow">MAKE YOURSELF AT HOME</p>
+          <h1>Your profile<span class="accent-text">.</span></h1>
+          <p>Just a few details to make this yours.</p>
+        </div>
+
+        <section class="content-card profile-card">
+          <div class="profile-avatar-large" id="profileAvatarLarge">?</div>
+          <h2 id="profileDisplayName">Your profile</h2>
+          <p id="profileEmail" class="muted">Sign in to sync across devices.</p>
+          <button class="secondary-button" id="profileAccountAction" type="button">Sign in / account</button>
+        </section>
+
+        <section class="content-card form-card">
+          <h2>Your name</h2>
+          <p>This is how your friends will see you in Picture Time.</p>
+          <form id="profileForm" class="app-form">
+            <label for="displayName">Display name</label>
+            <input id="displayName" name="displayName" maxlength="24"
+                   placeholder="What should we call you?" required>
+            <button class="primary-button" type="submit">Save changes <span>✓</span></button>
+          </form>
+        </section>
+
+        <section class="content-card settings-card">
+          <h2>About Picture Time</h2>
+          <p>Little moments are better when they're shared.</p>
+          <div class="settings-note"><span>✿</span> Made for the moments in between.</div>
+        </section>
+      </section>
+    </main>
+
+    <nav class="bottom-nav" aria-label="Main navigation">
+      <button class="nav-item active" id="homeNav" data-view="home" type="button" aria-current="page">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m3 10 9-7 9 7"/><path d="M5 9v11h14V9M9 20v-7h6v7"/></svg></span>
+        <span>Home</span>
+      </button>
+      <button class="nav-item" id="calendarNav" data-view="calendar" type="button">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg></span>
+        <span>Calendar</span>
+      </button>
+      <button class="nav-item" id="groupsNav" data-view="groups" type="button">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="10" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+        <span>Groups</span>
+      </button>
+      <button class="nav-item" id="profileNav" data-view="profile" type="button">
+        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></span>
+        <span>Profile</span>
+      </button>
+    </nav>
+  </div>
+
+  <dialog id="roundModal" class="app-dialog">
+    <div class="dialog-header">
       <div>
-        <p class="eyebrow">YOUR SCRAPBOOK</p>
-        <select id="groupSelect" aria-label="Choose a group"></select>
+        <p class="eyebrow" id="roundDate"></p>
+        <h2 id="roundTitle">Picture time!</h2>
       </div>
-      <button id="manageGroups" class="add-button" aria-label="Manage groups">+</button>
-    </section>
-
-    <section id="activeRound" class="active-round hidden">
-      <div class="section-heading">
-        <div>
-          <p class="eyebrow">HAPPENING RIGHT NOW</p>
-          <h2>It's picture time <span class="live-dot"></span></h2>
-        </div>
-        <div id="timer" class="timer">15:00</div>
-      </div>
-      <p class="muted">Add a photo before the timer runs out.</p>
-      <div class="actions">
-        <label for="photoInput" class="primary upload-label">＋ Add your photo</label>
-        <input id="photoInput" type="file" accept="image/*" capture="environment" hidden>
-      </div>
-      <div id="activePhotos" class="photo-grid"></div>
-    </section>
-
-    <section class="memories">
-      <div class="section-heading">
-        <div>
-          <p class="eyebrow">LITTLE TIME CAPSULES</p>
-          <h2>Recent memories</h2>
-        </div>
-        <button id="calendarButton" class="text-button">View calendar ↗</button>
-      </div>
-
-      <div id="emptyState" class="empty-state">
-        <div class="flower">✿</div>
-        <h3>Your scrapbook is waiting.</h3>
-        <p>Create a group, invite your people, and start your first picture round.</p>
-        <button id="emptyCreate" class="secondary">＋ Create a group</button>
-      </div>
-      <div id="roundsList" class="rounds-list"></div>
-    </section>
-  </main>
-
-  <nav class="bottom-nav" aria-label="Main navigation">
-    <button class="nav-item selected" id="homeNav"><span>⌂</span><small>Scrapbook</small></button>
-    <button class="nav-item" id="calendarNav"><span>▦</span><small>Calendar</small></button>
-    <button class="nav-item" id="groupsNav"><span>♡</span><small>Groups</small></button>
-  </nav>
-
-  <div id="toast" class="toast" role="status" aria-live="polite"></div>
-
-  <dialog id="groupsModal" class="modal">
-    <div class="modal-header">
-      <div><p class="eyebrow">YOUR PEOPLE</p><h2>Groups & invites</h2></div>
-      <button class="close" data-close="groupsModal" aria-label="Close">×</button>
+      <button class="icon-button" type="button" data-close="roundModal" aria-label="Close">×</button>
     </div>
-    <div class="modal-body">
-      <form id="createGroupForm" class="form-card">
-        <h3>Start a scrapbook</h3>
-        <label for="groupName">Group name</label>
-        <input id="groupName" maxlength="40" placeholder="The Weekend Crew" required>
-        <button class="primary full" type="submit">Create group ↗</button>
-      </form>
-
-      <form id="joinGroupForm" class="form-card">
-        <h3>Join with a code</h3>
-        <label for="inviteCode">Invite code</label>
-        <input id="inviteCode" maxlength="8" placeholder="ABCD1234" required>
-        <button class="secondary full" type="submit">Join group</button>
-      </form>
-
-      <h3 class="group-list-title">Your groups</h3>
-      <div id="groupsList"></div>
-      <p class="notice">Prototype mode: invite codes only work in this browser. Connecting a shared database will let your friends join from their own devices.</p>
+    <div class="dialog-body">
+      <div class="photo-grid" id="roundPhotos"></div>
     </div>
   </dialog>
 
-  <dialog id="profileModal" class="modal">
-    <div class="modal-header">
-      <div><p class="eyebrow">YOUR SCRAPBOOK</p><h2>Your name</h2></div>
-      <button class="close" data-close="profileModal" aria-label="Close">×</button>
-    </div>
-    <form id="profileForm" class="modal-body">
-      <label for="displayName">What should your friends call you?</label>
-      <input id="displayName" maxlength="24" required placeholder="Your name">
-      <button class="primary full" type="submit">Save name</button>
-    </form>
-  </dialog>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-  <dialog id="calendarModal" class="modal">
-    <div class="modal-header">
-      <div><p class="eyebrow">LOOKING BACK</p><h2>Memory calendar</h2></div>
-      <button class="close" data-close="calendarModal" aria-label="Close">×</button>
-    </div>
-    <div id="calendarContent" class="modal-body"></div>
-  </dialog>
-
-  <dialog id="roundModal" class="modal">
-    <div class="modal-header">
-      <div><p id="roundDate" class="eyebrow">MEMORY</p><h2 id="roundTitle">Picture time!</h2></div>
-      <button class="close" data-close="roundModal" aria-label="Close">×</button>
-    </div>
-    <div id="roundPhotos" class="modal-body photo-grid"></div>
-  </dialog>
+  <script type="module" src="app.js"></script>
 </body>
 </html>
