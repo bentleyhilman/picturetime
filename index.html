@@ -1,0 +1,151 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f3e9d7">
+  <meta name="description" content="A little scrapbook for your favourite people.">
+  <title>Picture Time — Save the little bits</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#" aria-label="Picture Time home">
+      <span class="brand-icon">✳</span>
+      picture time<span class="dot">.</span>
+    </a>
+    <button id="profileButton" class="avatar" aria-label="Edit your profile">B</button>
+  </header>
+
+  <main class="container">
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">✦ YOUR PEOPLE, YOUR MOMENTS</p>
+        <h1>Life happens.<br><em>Save the little bits.</em></h1>
+        <p class="intro">A tiny photo ritual for the people you want to remember everything with.</p>
+        <button id="startRound" class="primary large">
+          <span>▣</span> Picture time! <span class="arrow">↗</span>
+        </button>
+        <p id="heroHint" class="hint">Start a round and give everyone 15 minutes to share a moment.</p>
+      </div>
+      <div class="hero-art" aria-hidden="true">
+        <span class="sun">✳</span>
+        <span class="heart">♡</span>
+        <span class="star">✦</span>
+        <div class="tape"></div>
+        <div class="polaroid">
+          <div class="landscape"><span>☼</span></div>
+          <p>the good stuff</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="group-bar">
+      <div>
+        <p class="eyebrow">YOUR SCRAPBOOK</p>
+        <select id="groupSelect" aria-label="Choose a group"></select>
+      </div>
+      <button id="manageGroups" class="add-button" aria-label="Manage groups">+</button>
+    </section>
+
+    <section id="activeRound" class="active-round hidden">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">HAPPENING RIGHT NOW</p>
+          <h2>It's picture time <span class="live-dot"></span></h2>
+        </div>
+        <div id="timer" class="timer">15:00</div>
+      </div>
+      <p class="muted">Add a photo before the timer runs out.</p>
+      <div class="actions">
+        <label for="photoInput" class="primary upload-label">＋ Add your photo</label>
+        <input id="photoInput" type="file" accept="image/*" capture="environment" hidden>
+      </div>
+      <div id="activePhotos" class="photo-grid"></div>
+    </section>
+
+    <section class="memories">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">LITTLE TIME CAPSULES</p>
+          <h2>Recent memories</h2>
+        </div>
+        <button id="calendarButton" class="text-button">View calendar ↗</button>
+      </div>
+
+      <div id="emptyState" class="empty-state">
+        <div class="flower">✿</div>
+        <h3>Your scrapbook is waiting.</h3>
+        <p>Create a group, invite your people, and start your first picture round.</p>
+        <button id="emptyCreate" class="secondary">＋ Create a group</button>
+      </div>
+      <div id="roundsList" class="rounds-list"></div>
+    </section>
+  </main>
+
+  <nav class="bottom-nav" aria-label="Main navigation">
+    <button class="nav-item selected" id="homeNav"><span>⌂</span><small>Scrapbook</small></button>
+    <button class="nav-item" id="calendarNav"><span>▦</span><small>Calendar</small></button>
+    <button class="nav-item" id="groupsNav"><span>♡</span><small>Groups</small></button>
+  </nav>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <dialog id="groupsModal" class="modal">
+    <div class="modal-header">
+      <div><p class="eyebrow">YOUR PEOPLE</p><h2>Groups & invites</h2></div>
+      <button class="close" data-close="groupsModal" aria-label="Close">×</button>
+    </div>
+    <div class="modal-body">
+      <form id="createGroupForm" class="form-card">
+        <h3>Start a scrapbook</h3>
+        <label for="groupName">Group name</label>
+        <input id="groupName" maxlength="40" placeholder="The Weekend Crew" required>
+        <button class="primary full" type="submit">Create group ↗</button>
+      </form>
+
+      <form id="joinGroupForm" class="form-card">
+        <h3>Join with a code</h3>
+        <label for="inviteCode">Invite code</label>
+        <input id="inviteCode" maxlength="8" placeholder="ABCD1234" required>
+        <button class="secondary full" type="submit">Join group</button>
+      </form>
+
+      <h3 class="group-list-title">Your groups</h3>
+      <div id="groupsList"></div>
+      <p class="notice">Prototype mode: invite codes only work in this browser. Connecting a shared database will let your friends join from their own devices.</p>
+    </div>
+  </dialog>
+
+  <dialog id="profileModal" class="modal">
+    <div class="modal-header">
+      <div><p class="eyebrow">YOUR SCRAPBOOK</p><h2>Your name</h2></div>
+      <button class="close" data-close="profileModal" aria-label="Close">×</button>
+    </div>
+    <form id="profileForm" class="modal-body">
+      <label for="displayName">What should your friends call you?</label>
+      <input id="displayName" maxlength="24" required placeholder="Your name">
+      <button class="primary full" type="submit">Save name</button>
+    </form>
+  </dialog>
+
+  <dialog id="calendarModal" class="modal">
+    <div class="modal-header">
+      <div><p class="eyebrow">LOOKING BACK</p><h2>Memory calendar</h2></div>
+      <button class="close" data-close="calendarModal" aria-label="Close">×</button>
+    </div>
+    <div id="calendarContent" class="modal-body"></div>
+  </dialog>
+
+  <dialog id="roundModal" class="modal">
+    <div class="modal-header">
+      <div><p id="roundDate" class="eyebrow">MEMORY</p><h2 id="roundTitle">Picture time!</h2></div>
+      <button class="close" data-close="roundModal" aria-label="Close">×</button>
+    </div>
+    <div id="roundPhotos" class="modal-body photo-grid"></div>
+  </dialog>
+</body>
+</html>
