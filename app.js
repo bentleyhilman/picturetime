@@ -5,6 +5,7 @@ const $ = (id) => document.getElementById(id);
 const PHOTO_BUCKET = "picture-photos";
 const AVATAR_BUCKET = "profile-photos";
 const ROUND_MINUTES = 15;
+const SHARED_GROUP_ID = "00000000-0000-4000-8000-000000000001";
 const SIGNED_URL_SECONDS = 3600;
 
 const state = {
@@ -77,6 +78,7 @@ function formatTime(value) {
   return new Date(value).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
+// Internally, every account uses the same shared group.
 function circle() {
   return state.circle;
 }
@@ -239,7 +241,6 @@ function renderProfile() {
 
   $("authPanel").hidden = signedIn;
   $("accountPanel").hidden = !signedIn;
-  $("friendCirclePanel").hidden = !signedIn;
 
   $("profileName").textContent = signedIn ? (name || "Your profile") : "Your profile";
   $("profileEmail").textContent = signedIn
@@ -257,6 +258,7 @@ function renderProfile() {
     avatar.hidden = false;
     $("profileInitials").hidden = true;
     $("headerAvatar").innerHTML = "";
+
     const headerImage = document.createElement("img");
     headerImage.src = avatarUrl;
     headerImage.alt = "";
@@ -268,12 +270,9 @@ function renderProfile() {
     $("headerAvatar").textContent = initials(name || state.user?.email || "?");
   }
 
-  if (signedIn) $("displayName").value = state.user.user_metadata?.display_name || "";
-
-  const currentCircle = circle();
-  $("noCircleControls").hidden = Boolean(currentCircle);
-  $("inviteCodeDisplay").textContent = currentCircle?.code || "No circle yet";
-  $("copyInviteButton").disabled = !currentCircle?.code;
+  if (signedIn) {
+    $("displayName").value = state.user.user_metadata?.display_name || "";
+  }
 }
 
 async function uploadAvatar(event) {
@@ -291,7 +290,10 @@ async function uploadAvatar(event) {
     return;
   }
 
-  const extension = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
+  const extension = (file.name.split(".").pop() || "jpg")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "") || "jpg";
+
   const path = `${state.user.id}/${crypto.randomUUID()}.${extension}`;
 
   try {
@@ -318,7 +320,7 @@ async function uploadAvatar(event) {
   }
 }
 
-/* Data */
+/* Shared data */
 
 async function loadData() {
   if (!state.user) {
@@ -331,42 +333,21 @@ async function loadData() {
   }
 
   try {
-    const { data: memberships, error: membershipError } = await supabase
-      .from("group_members")
-      .select("group_id")
-      .eq("user_id", state.user.id);
-    if (membershipError) throw membershipError;
+    // One shared group is used internally; users no longer create or join circles.
+    state.groups = [{
+      id: SHARED_GROUP_ID,
+      name: "Everyone",
+      code: null,
+      createdAt: null,
+    }];
+    state.circle = state.groups[0];
 
-    const groupIds = [...new Set((memberships || []).map((m) => m.group_id))];
-
-    if (!groupIds.length) {
-      state.groups = [];
-      state.rounds = [];
-      state.photos = [];
-      state.circle = null;
-      renderAll();
-      return;
-    }
-
-    const { data: groups, error: groupsError } = await supabase
-      .from("groups")
-      .select("id,name,invite_code,created_by,created_at")
-      .in("id", groupIds)
-      .order("created_at", { ascending: true });
-    if (groupsError) throw groupsError;
-
-    state.groups = (groups || []).map((g) => ({
-      id: g.id, name: g.name, code: g.invite_code, createdAt: g.created_at,
-    }));
-
-    // Picture Time uses one friend circle. Existing memberships remain intact.
-    state.circle = state.groups[0] || null;
-
+    // Load rounds from the shared feed and preserve access to older round history.
     const { data: rounds, error: roundsError } = await supabase
       .from("rounds")
       .select("id,group_id,created_by,created_at,ends_at")
-      .in("group_id", groupIds)
       .order("created_at", { ascending: false });
+
     if (roundsError) throw roundsError;
 
     state.rounds = (rounds || []).map((r) => ({
@@ -387,6 +368,7 @@ async function loadData() {
         .select("id,round_id,user_id,storage_path,created_at")
         .in("round_id", roundIds)
         .order("created_at", { ascending: true });
+
       if (photosError) throw photosError;
 
       state.photos = await Promise.all((photos || []).map(async (p) => {
@@ -411,80 +393,6 @@ async function loadData() {
   }
 }
 
-/* Friend circle: create once or join using a friend's invite code */
-
-function makeInviteCode() {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  const bytes = new Uint8Array(7);
-  crypto.getRandomValues(bytes);
-  return Array.from(bytes, (b) => chars[b % chars.length]).join("");
-}
-
-function setupCircle() {
-  $("createCircleForm")?.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    if (!state.user) return;
-
-    const name = $("circleName").value.trim();
-    if (!name) return;
-
-    const button = event.submitter;
-    if (button) button.disabled = true;
-
-    try {
-      const { error } = await supabase.rpc("create_group", {
-        p_name: name,
-        p_invite_code: makeInviteCode(),
-      });
-      if (error) throw error;
-
-      $("circleName").value = "";
-      await loadData();
-      toast("Friend circle created. Share your invite code!");
-    } catch (error) {
-      toast(`Couldn't create your circle: ${friendlyError(error)}`);
-    } finally {
-      if (button) button.disabled = false;
-    }
-  });
-
-  $("joinCircleForm")?.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    if (!state.user) return;
-
-    const code = $("joinCode").value.trim().toUpperCase();
-    if (!code) return;
-
-    const button = event.submitter;
-    if (button) button.disabled = true;
-
-    try {
-      const { error } = await supabase.rpc("join_group", { p_invite_code: code });
-      if (error) throw error;
-
-      $("joinCode").value = "";
-      await loadData();
-      toast("You've joined your friend's circle!");
-    } catch (error) {
-      toast(`Couldn't join: ${friendlyError(error)}`);
-    } finally {
-      if (button) button.disabled = false;
-    }
-  });
-
-  $("copyInviteButton")?.addEventListener("click", async () => {
-    const code = circle()?.code;
-    if (!code) return;
-
-    try {
-      await navigator.clipboard.writeText(code);
-      toast("Invite code copied.");
-    } catch {
-      window.prompt("Copy this invite code:", code);
-    }
-  });
-}
-
 /* Home */
 
 function renderGreeting() {
@@ -503,26 +411,25 @@ function renderGreeting() {
 
 function renderHome() {
   const round = activeRound();
-  const friendCircle = circle();
   const signedIn = Boolean(state.user);
 
   $("roundStatus").textContent = round ? "ROUND IN PROGRESS" : "READY WHEN YOU ARE";
   $("roundDot").classList.toggle("is-live", Boolean(round));
   $("roundHeading").textContent = round ? "Make the most of it." : "It's picture time.";
+
   $("roundDescription").textContent = round
     ? "Your round is live. Add photos before time runs out."
     : !signedIn
-      ? "Sign in to start a round with your friends."
-      : !friendCircle
-        ? "Set up your friend circle in Profile to get started."
-        : "Start a round and share a little piece of your day.";
+      ? "Sign in to start a round with everyone."
+      : "Start a round and share a little piece of your day.";
 
   $("timer").hidden = !round;
   $("timer").textContent = round ? remainingTime(round.endsAt) : "";
   $("startRound").textContent = round ? "Round in progress" : "Start picture time";
-  $("startRound").disabled = !signedIn || !friendCircle || Boolean(round);
+  $("startRound").disabled = !signedIn || Boolean(round);
   $("uploadLabel").hidden = !round;
   $("photoInput").disabled = !round;
+
   $("roundNote").textContent = round
     ? `${photosInRound(round.id).length} photos added · ends ${formatTime(round.endsAt)}`
     : "A round lasts 15 minutes.";
@@ -538,14 +445,17 @@ function renderHome() {
   recent.forEach((photo) => {
     const tile = document.createElement("div");
     tile.className = "photo-tile";
+
     const img = document.createElement("img");
     img.src = photo.url;
     img.alt = "A shared Picture Time photo";
     img.loading = "lazy";
+
     const button = document.createElement("button");
     button.type = "button";
     button.setAttribute("aria-label", "Open photo round");
     button.addEventListener("click", () => openRound(photo.roundId));
+
     tile.append(img, button);
     grid.append(tile);
   });
@@ -553,7 +463,7 @@ function renderHome() {
   $("recentEmpty").hidden = recent.length > 0;
 
   const rounds = state.rounds
-    .filter((r) => state.groups.some((g) => g.id === r.groupId))
+    .slice()
     .sort((a, b) => new Date(b.startedAt) - new Date(a.startedAt))
     .slice(0, 4);
 
@@ -574,12 +484,6 @@ function setupRoundActions() {
       return;
     }
 
-    if (!circle()) {
-      toast("Create or join your friend circle in Profile first.");
-      switchView("profile");
-      return;
-    }
-
     if (activeRound()) {
       toast("A round is already in progress.");
       return;
@@ -590,7 +494,10 @@ function setupRoundActions() {
     button.textContent = "Starting…";
 
     try {
-      const { error } = await supabase.rpc("start_round", { p_group_id: circle().id });
+      const { error } = await supabase.rpc("start_round", {
+        p_group_id: SHARED_GROUP_ID,
+      });
+
       if (error) throw error;
 
       await loadData();
@@ -630,12 +537,16 @@ function setupRoundActions() {
 
     try {
       for (const file of files) {
-        const extension = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
+        const extension = (file.name.split(".").pop() || "jpg")
+          .toLowerCase()
+          .replace(/[^a-z0-9]/g, "") || "jpg";
+
         const path = `${round.groupId}/${round.id}/${state.user.id}/${crypto.randomUUID()}.${extension}`;
 
         const { error: uploadError } = await supabase.storage
           .from(PHOTO_BUCKET)
           .upload(path, file, { contentType: file.type, upsert: false });
+
         if (uploadError) throw uploadError;
 
         const { error: rowError } = await supabase.from("photos").insert({
@@ -648,11 +559,15 @@ function setupRoundActions() {
           await supabase.storage.from(PHOTO_BUCKET).remove([path]);
           throw rowError;
         }
+
         uploaded++;
       }
 
       await loadData();
-      if (uploaded) toast(uploaded === 1 ? "Photo added." : `${uploaded} photos added.`);
+
+      if (uploaded) {
+        toast(uploaded === 1 ? "Photo added." : `${uploaded} photos added.`);
+      }
     } catch (error) {
       toast(`Upload failed: ${friendlyError(error)}`);
     } finally {
@@ -708,6 +623,7 @@ function renderCalendar() {
 
   const year = state.calendarMonth.getFullYear();
   const month = state.calendarMonth.getMonth();
+
   $("calendarMonth").textContent = state.calendarMonth.toLocaleDateString(undefined, {
     month: "long", year: "numeric",
   });
@@ -730,14 +646,13 @@ function renderCalendar() {
 
   for (let day = 1; day <= daysInMonth; day++) {
     const key = dateKey(new Date(year, month, day));
-    const hasRound = state.rounds.some((r) =>
-      dateKey(r.startedAt) === key && state.groups.some((g) => g.id === r.groupId)
-    );
+    const hasRound = state.rounds.some((r) => dateKey(r.startedAt) === key);
 
     const button = document.createElement("button");
     button.type = "button";
     button.className = "calendar-day";
     button.textContent = String(day);
+
     if (key === today) button.classList.add("today");
     if (key === state.selectedDay) button.classList.add("selected");
     if (hasRound) button.classList.add("has-round");
@@ -751,7 +666,9 @@ function renderCalendar() {
   }
 
   $("selectedDateHeading").textContent = new Date(`${state.selectedDay}T12:00:00`)
-    .toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
+    .toLocaleDateString(undefined, {
+      weekday: "long", month: "long", day: "numeric",
+    });
 
   const rounds = state.rounds
     .filter((r) => dateKey(r.startedAt) === state.selectedDay)
@@ -763,12 +680,20 @@ function renderCalendar() {
 
 function setupCalendar() {
   $("previousMonth")?.addEventListener("click", () => {
-    state.calendarMonth = new Date(state.calendarMonth.getFullYear(), state.calendarMonth.getMonth() - 1, 1);
+    state.calendarMonth = new Date(
+      state.calendarMonth.getFullYear(),
+      state.calendarMonth.getMonth() - 1,
+      1
+    );
     renderCalendar();
   });
 
   $("nextMonth")?.addEventListener("click", () => {
-    state.calendarMonth = new Date(state.calendarMonth.getFullYear(), state.calendarMonth.getMonth() + 1, 1);
+    state.calendarMonth = new Date(
+      state.calendarMonth.getFullYear(),
+      state.calendarMonth.getMonth() + 1,
+      1
+    );
     renderCalendar();
   });
 }
@@ -779,7 +704,9 @@ function openRound(roundId) {
   const round = state.rounds.find((r) => r.id === roundId);
   if (!round) return;
 
-  $("dialogRoundTitle").textContent = state.groups.find((g) => g.id === round.groupId)?.name || "Picture Time";
+  $("dialogRoundTitle").textContent =
+    state.groups.find((g) => g.id === round.groupId)?.name || "Picture Time";
+
   $("dialogRoundDate").textContent = formatDate(round.startedAt, {
     weekday: "long", month: "long", day: "numeric", year: "numeric",
   });
@@ -788,13 +715,16 @@ function openRound(roundId) {
   grid.replaceChildren();
 
   const photos = photosInRound(roundId).filter((p) => p.url);
+
   photos.forEach((photo) => {
     const tile = document.createElement("div");
     tile.className = "photo-tile";
+
     const img = document.createElement("img");
     img.src = photo.url;
     img.alt = "Shared memory";
     img.loading = "lazy";
+
     tile.append(img);
     grid.append(tile);
   });
@@ -810,12 +740,16 @@ function renderAll() {
   renderGreeting();
   renderHome();
   renderProfile();
-  if ($("calendarView").classList.contains("active")) renderCalendar();
+
+  if ($("calendarView").classList.contains("active")) {
+    renderCalendar();
+  }
 }
 
 function setupRealtime() {
   if (state.channel) supabase.removeChannel(state.channel);
   state.channel = null;
+
   if (!state.user) return;
 
   state.channel = supabase
@@ -830,13 +764,15 @@ function setupRealtime() {
 async function init() {
   setupNavigation();
   setupAuth();
-  setupCircle();
   setupRoundActions();
   setupCalendar();
   setAuthMode(false);
 
   const { data, error } = await supabase.auth.getSession();
-  if (error) toast(`Couldn't check sign-in status: ${friendlyError(error)}`);
+
+  if (error) {
+    toast(`Couldn't check sign-in status: ${friendlyError(error)}`);
+  }
 
   state.user = data?.session?.user || null;
   await loadData();
@@ -844,6 +780,7 @@ async function init() {
 
   supabase.auth.onAuthStateChange((_event, session) => {
     state.user = session?.user || null;
+
     setTimeout(async () => {
       await loadData();
       setupRealtime();
@@ -852,9 +789,13 @@ async function init() {
 
   state.timer = setInterval(() => {
     const round = activeRound();
+
     if (round) {
       $("timer").textContent = remainingTime(round.endsAt);
-      if (new Date(round.endsAt).getTime() <= Date.now()) loadData();
+
+      if (new Date(round.endsAt).getTime() <= Date.now()) {
+        loadData();
+      }
     }
   }, 1000);
 
